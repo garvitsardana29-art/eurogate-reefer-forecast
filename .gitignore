@@ -1,0 +1,18 @@
+.DS_Store
+__pycache__/
+.venv_check/
+.vscode/
+
+# Local server / caches
+*.pyc
+
+# Large local-only folders
+archive_experiments/
+
+# Raw challenge archives are kept local because they are too large for a lightweight repo
+reefer_release.zip
+wetterdaten.zip
+
+# Large regenerated intermediate outputs can be recreated locally if needed
+predictions.csv
+predictions_xgb_recursive.csv

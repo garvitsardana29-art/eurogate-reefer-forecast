@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Eurogate Reefer Load Forecast</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Hackathon Demo</p>
+          <h1>Eurogate Reefer Load Forecast</h1>
+          <p class="hero-text">
+            A terminal-level electricity forecasting dashboard for reefer containers, built from
+            container history, weather aggregation, recursive modeling, and a final blended forecast.
+          </p>
+          <div class="hero-actions">
+            <a class="primary-btn" href="#dashboard">Explore Forecast</a>
+            <a class="secondary-btn" href="#pipeline">See Pipeline</a>
+          </div>
+        </div>
+
+        <div class="hero-panel">
+          <div class="metric-strip">
+            <div class="metric-card accent">
+              <span class="metric-label">Final Combined Score</span>
+              <strong class="metric-value">52.375</strong>
+              <span class="metric-note">Current selected blended v2 candidate</span>
+            </div>
+            <div class="metric-grid">
+              <div class="mini-metric">
+                <span>MAE All</span>
+                <strong>70.942 kW</strong>
+              </div>
+              <div class="mini-metric">
+                <span>MAE Peak</span>
+                <strong>47.060 kW</strong>
+              </div>
+              <div class="mini-metric">
+                <span>Pinball P90</span>
+                <strong>13.931</strong>
+              </div>
+              <div class="mini-metric">
+                <span>P90 Coverage</span>
+                <strong>0.888</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="stats-band">
+          <article class="stat-tile">
+            <span class="stat-label">Observed History</span>
+            <strong class="stat-value">8,403 hours</strong>
+            <span class="stat-detail">2025-01-01 to 2026-01-10</span>
+          </article>
+          <article class="stat-tile">
+            <span class="stat-label">Average Terminal Load</span>
+            <strong class="stat-value">1,066.837 kW</strong>
+            <span class="stat-detail">Across the full observed history</span>
+          </article>
+          <article class="stat-tile">
+            <span class="stat-label">Average Active Reefers</span>
+            <strong class="stat-value">449.192</strong>
+            <span class="stat-detail">Peak observed count: 777</span>
+          </article>
+          <article class="stat-tile">
+            <span class="stat-label">Weather Anchors</span>
+            <strong class="stat-value">2 zones</strong>
+            <span class="stat-detail">Zentralgate and VC Halle 3</span>
+          </article>
+        </section>
+
+        <section class="section-grid" id="dashboard">
+          <div class="panel panel-map">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Terminal View</p>
+                <h2>Interactive Terminal Map</h2>
+              </div>
+              <label class="select-wrap">
+                <span>Focus area</span>
+                <select id="zone-select">
+                  <option value="overview">Terminal Overview</option>
+                  <option value="zentralgate">Zentralgate</option>
+                  <option value="vc_halle3">VC Halle 3</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="map-layout">
+              <div class="terminal-map" id="terminal-map">
+                <div class="water-band"></div>
+                <div class="terminal-block"></div>
+                <button class="map-node node-overview active" data-zone="overview">
+                  <span>Eurogate Terminal</span>
+                </button>
+                <button class="map-node node-zentralgate" data-zone="zentralgate">
+                  <span>Zentralgate</span>
+                </button>
+                <button class="map-node node-vc" data-zone="vc_halle3">
+                  <span>VC Halle 3</span>
+                </button>
+              </div>
+
+              <aside class="zone-panel">
+                <h3 id="zone-title">Terminal Overview</h3>
+                <p id="zone-description">
+                  The dataset describes one reefer terminal. The map focuses on the full terminal
+                  and the two named weather locations used in the provided data.
+                </p>
+                <ul class="zone-facts" id="zone-facts"></ul>
+              </aside>
+            </div>
+          </div>
+
+          <div class="panel panel-chart">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Forecast Explorer</p>
+                <h2>Model Comparison</h2>
+              </div>
+              <label class="select-wrap">
+                <span>Prediction series</span>
+                <select id="model-select">
+                  <option value="blend">Final Blend v2</option>
+                  <option value="baseline">Baseline Recursive</option>
+                  <option value="xgb">Recursive XGBoost</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="chart-summary">
+              <div class="legend">
+                <span><i class="swatch actual"></i>Actual</span>
+                <span><i class="swatch pred"></i>Point Forecast</span>
+                <span><i class="swatch p90"></i>P90 Upper Estimate</span>
+              </div>
+              <div class="chart-metrics" id="chart-metrics"></div>
+            </div>
+
+            <div class="chart-wrap">
+              <svg id="forecast-chart" viewBox="0 0 980 360" preserveAspectRatio="none"></svg>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel narrative-panel" id="pipeline">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Pipeline</p>
+              <h2>How The Forecast Was Built</h2>
+            </div>
+          </div>
+
+          <div class="pipeline-grid">
+            <article class="pipeline-step">
+              <span class="step-index">01</span>
+              <h3>Aggregate Container Rows</h3>
+              <p>
+                Convert container-level reefer records into one terminal-level hourly target with
+                load, container counts, temperature summaries, stack-tier proxies, and customer mix.
+              </p>
+            </article>
+            <article class="pipeline-step">
+              <span class="step-index">02</span>
+              <h3>Build Causal Features</h3>
+              <p>
+                Create lagged load signals, rolling statistics, calendar features, and reefer-state
+                proxies using past information only.
+              </p>
+            </article>
+            <article class="pipeline-step">
+              <span class="step-index">03</span>
+              <h3>Train Recursive Models</h3>
+              <p>
+                Train a stable baseline recursive model and a recursive XGBoost model, then forecast
+                the public target block hour by hour.
+              </p>
+            </article>
+            <article class="pipeline-step">
+              <span class="step-index">04</span>
+              <h3>Blend For Final Submission</h3>
+              <p>
+                Combine the baseline and XGBoost forecasts with a two-regime rule so lower-load
+                hours lean more on the baseline and peak-like hours lean more on XGBoost.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel detail-grid">
+          <div class="detail-card">
+            <p class="eyebrow">Final Choice</p>
+            <h3>Why the v2 blend won</h3>
+            <p>
+              The baseline model remained stable under recursive forecasting, while the recursive
+              XGBoost model improved peak behavior. The final two-regime blend captured both
+              strengths more effectively than a single fixed blend weight.
+            </p>
+          </div>
+          <div class="detail-card">
+            <p class="eyebrow">Leakage Handling</p>
+            <h3>Why the core setup is still causal</h3>
+            <p>
+              The two main recursive models are trained before the target block and forecast forward.
+              The final blend weights were tuned on the visible public period, but the base models
+              themselves are recursive and history-driven.
+            </p>
+          </div>
+          <div class="detail-card">
+            <p class="eyebrow">LLM Usage</p>
+            <h3>Where AI helped</h3>
+            <p>
+              LLMs were used for feature brainstorming, code generation, experiment design, and
+              documentation support. Final modeling choices were validated with time-based testing.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel command-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Run Locally</p>
+              <h2>How To Reproduce The Final Result</h2>
+            </div>
+          </div>
+<pre><code>python3 /Users/sardana/Downloads/participant_package/final_recursive_submission.py
+/Users/sardana/Downloads/participant_package/.venv_check/bin/python /Users/sardana/Downloads/participant_package/xgb_recursive_feature_submission.py
+python3 /Users/sardana/Downloads/participant_package/blended_submission_v2.py</code></pre>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
