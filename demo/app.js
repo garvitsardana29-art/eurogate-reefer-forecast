@@ -2,40 +2,37 @@ const zoneDetails = {
   overview: {
     title: "Terminal Forecast",
     description:
-      "The challenge predicts one combined hourly reefer electricity load series for the terminal. This is a terminal-wide forecast, not a separate forecast for each point on the map.",
+      "One combined hourly reefer load forecast for the terminal.",
     facts: [
-      ["Forecast target", "Combined hourly reefer electricity usage for the full terminal"],
-      ["What the map means", "The extra points are weather reference locations inside the same terminal context"],
-      ["Observed history", "8,403 hourly rows from January 2025 to January 2026"],
-      ["Operational signals", "Container count, setpoint mix, stack-tier proxies, and hardware mix"],
+      ["Target", "Combined terminal reefer electricity usage"],
+      ["Training window", "Model fit uses history before the first target hour"],
+      ["Signals", "Container count, setpoint mix, stack tiers, hardware mix"],
     ],
   },
   zentralgate: {
     title: "Zentralgate",
     description:
-      "Zentralgate is one of the named weather reference locations in the package. It does not have its own separate forecast curve; it provides environmental context for the terminal-wide model.",
+      "Weather reference point used for terminal context.",
     facts: [
-      ["Role in package", "Temperature, wind, and wind-direction reference source"],
-      ["How to read this", "Switching here changes the context panel, not the global terminal forecast chart"],
-      ["Model note", "Weather was tested but was not the dominant driver of the final selected forecast"],
+      ["Role", "Temperature, wind, and wind-direction source"],
+      ["Chart", "Changes this side panel, not the terminal forecast chart"],
     ],
   },
   vc_halle3: {
     title: "VC Halle 3",
     description:
-      "VC Halle 3 is the second named weather reference location in the package and offers another environmental view of the same terminal conditions.",
+      "Second weather reference point in the same terminal package.",
     facts: [
-      ["Role in package", "Temperature, wind, and wind-direction reference source"],
-      ["Why it matters", "Helps describe spatial weather context inside the same terminal"],
-      ["Model note", "Used during feature testing and for explaining the package structure"],
+      ["Role", "Temperature, wind, and wind-direction source"],
+      ["Use", "Provides a second environmental anchor for context"],
     ],
   },
 };
 
 const modelDisplay = {
   blend: { key: "blend", name: "Strict Day-Ahead Blend", color: "#145b62", p90Color: "#d26842" },
-  baseline: { key: "baseline", name: "Baseline Recursive", color: "#577590", p90Color: "#b08968" },
-  xgb: { key: "xgb", name: "Recursive XGBoost", color: "#0d7f72", p90Color: "#ef8354" },
+  baseline: { key: "baseline", name: "Recursive Baseline Reference", color: "#577590", p90Color: "#b08968" },
+  xgb: { key: "xgb", name: "Recursive XGBoost Reference", color: "#0d7f72", p90Color: "#ef8354" },
 };
 
 const zoneSelect = document.getElementById("zone-select");
@@ -46,10 +43,17 @@ const zoneFacts = document.getElementById("zone-facts");
 const modelSelect = document.getElementById("model-select");
 const chartMetrics = document.getElementById("chart-metrics");
 const svg = document.getElementById("forecast-chart");
-const uploadForm = document.getElementById("upload-form");
-const uploadStatus = document.getElementById("upload-status");
-const uploadResult = document.getElementById("upload-result");
-
+const heroCombinedScore = document.getElementById("hero-combined-score");
+const heroScoreNote = document.getElementById("hero-score-note");
+const heroMaeAll = document.getElementById("hero-mae-all");
+const heroMaePeak = document.getElementById("hero-mae-peak");
+const heroPinball = document.getElementById("hero-pinball");
+const heroCoverage = document.getElementById("hero-coverage");
+const statHistoryHours = document.getElementById("stat-history-hours");
+const statHistoryRange = document.getElementById("stat-history-range");
+const statAvgLoad = document.getElementById("stat-avg-load");
+const statAvgActive = document.getElementById("stat-avg-active");
+const statPeakActive = document.getElementById("stat-peak-active");
 function updateZone(zoneKey) {
   const zone = zoneDetails[zoneKey];
   if (!zone) return;
@@ -108,6 +112,51 @@ function polylinePath(points) {
   return points
     .map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
     .join(" ");
+}
+
+function computeMetrics(dataRows, modelKey) {
+  const actualSeries = dataRows.map((row) => row.actual);
+  const predSeries = dataRows.map((row) => row[modelKey]);
+  const p90Series = dataRows.map((row) => row[`${modelKey}_p90`]);
+  const peakThreshold = percentile(actualSeries, 0.9);
+  const maeAll = mean(actualSeries.map((value, idx) => Math.abs(value - predSeries[idx])));
+  const peakErrors = actualSeries
+    .map((value, idx) => ({ value, err: Math.abs(value - predSeries[idx]) }))
+    .filter((item) => item.value >= peakThreshold)
+    .map((item) => item.err);
+  const maePeak = mean(peakErrors);
+  const pinball = mean(actualSeries.map((value, idx) => pinballLoss(value, p90Series[idx], 0.9)));
+  const combined = 0.5 * maeAll + 0.3 * maePeak + 0.2 * pinball;
+  const coverage = mean(actualSeries.map((value, idx) => (value <= p90Series[idx] ? 1 : 0)));
+  return { maeAll, maePeak, pinball, combined, coverage };
+}
+
+function updateHeroMetrics(dataRows) {
+  const metrics = computeMetrics(dataRows, "blend");
+  heroCombinedScore.textContent = metrics.combined.toFixed(3);
+  heroMaeAll.textContent = `${metrics.maeAll.toFixed(3)} kW`;
+  heroMaePeak.textContent = `${metrics.maePeak.toFixed(3)} kW`;
+  heroPinball.textContent = metrics.pinball.toFixed(3);
+  heroCoverage.textContent = metrics.coverage.toFixed(3);
+  heroScoreNote.textContent = "Computed from the current strict final CSV and visible target block";
+}
+
+function updateHistoryStats(hourlyRows, firstTargetTimestamp) {
+  const observed = hourlyRows.filter((row) => row.is_observed_hour === "1");
+  const trainingRows = observed.filter((row) => row.timestamp_utc < firstTargetTimestamp);
+  if (!trainingRows.length) return;
+
+  const timestamps = trainingRows.map((row) => row.timestamp_utc).sort();
+  const loads = trainingRows.map((row) => Number(row.terminal_total_kw)).filter((value) => !Number.isNaN(value));
+  const actives = trainingRows
+    .map((row) => Number(row.active_container_count))
+    .filter((value) => !Number.isNaN(value));
+
+  statHistoryHours.textContent = `${trainingRows.length.toLocaleString("en-US")} hours`;
+  statHistoryRange.textContent = `${timestamps[0].slice(0, 10)} to ${timestamps[timestamps.length - 1].slice(0, 10)}`;
+  statAvgLoad.textContent = `${mean(loads).toFixed(3)} kW`;
+  statAvgActive.textContent = mean(actives).toFixed(3);
+  statPeakActive.textContent = `Peak observed count: ${Math.max(...actives).toFixed(0)}`;
 }
 
 function buildChart(dataRows, modelKey) {
@@ -169,22 +218,15 @@ function buildChart(dataRows, modelKey) {
     <path d="${polylinePath(actualPoints)}" fill="none" stroke="#172126" stroke-width="2.8"></path>
   `;
 
-  const peakThreshold = percentile(actualSeries, 0.9);
-  const maeAll = mean(actualSeries.map((value, idx) => Math.abs(value - predSeries[idx])));
-  const peakErrors = actualSeries
-    .map((value, idx) => ({ value, err: Math.abs(value - predSeries[idx]) }))
-    .filter((item) => item.value >= peakThreshold)
-    .map((item) => item.err);
-  const maePeak = mean(peakErrors);
-  const pinball = mean(actualSeries.map((value, idx) => pinballLoss(value, p90Series[idx], 0.9)));
-  const combined = 0.5 * maeAll + 0.3 * maePeak + 0.2 * pinball;
+  const metrics = computeMetrics(dataRows, model.key);
 
   chartMetrics.innerHTML = `
     <span><strong>${model.name}</strong></span>
-    <span>MAE All <strong>${maeAll.toFixed(3)}</strong></span>
-    <span>MAE Peak <strong>${maePeak.toFixed(3)}</strong></span>
-    <span>Pinball P90 <strong>${pinball.toFixed(3)}</strong></span>
-    <span>Combined <strong>${combined.toFixed(3)}</strong></span>
+    <span>MAE All <strong>${metrics.maeAll.toFixed(3)}</strong></span>
+    <span>MAE Peak <strong>${metrics.maePeak.toFixed(3)}</strong></span>
+    <span>Pinball P90 <strong>${metrics.pinball.toFixed(3)}</strong></span>
+    <span>P90 Coverage <strong>${metrics.coverage.toFixed(3)}</strong></span>
+    <span>Combined <strong>${metrics.combined.toFixed(3)}</strong></span>
   `;
 }
 
@@ -219,61 +261,22 @@ async function loadData() {
   attachPredictions(blendCsv, "blend");
 
   const rows = Object.values(byTs).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-  return rows;
+  return { rows, hourlyRows: parseCsv(actualCsv) };
 }
 
 async function init() {
   updateZone("overview");
 
   try {
-    const health = await fetch("/api/health").then((res) => res.json());
-    uploadStatus.innerHTML = `<p>Backend status: <strong>${health.status}</strong> · ${health.timestamp_utc}</p>`;
-  } catch (error) {
-    uploadStatus.innerHTML = `<p>Backend status: <strong>offline</strong>. Start the backend with <code>uvicorn backend_api:app --host 0.0.0.0 --port 8000</code>.</p>`;
-  }
-
-  try {
-    const rows = await loadData();
+    const { rows, hourlyRows } = await loadData();
+    updateHeroMetrics(rows);
+    updateHistoryStats(hourlyRows, rows[0].timestamp);
     buildChart(rows, "blend");
     modelSelect.addEventListener("change", (event) => buildChart(rows, event.target.value));
   } catch (error) {
     chartMetrics.innerHTML = `<span>Could not load CSV data. Run a local server like <strong>python3 -m http.server 8000</strong> from the participant package folder.</span>`;
     console.error(error);
   }
-
-  uploadForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const formData = new FormData(uploadForm);
-    uploadResult.innerHTML = "<p>Uploading files and running the forecast pipeline...</p>";
-
-    try {
-      const response = await fetch("/api/jobs", {
-        method: "POST",
-        body: formData,
-      });
-
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(typeof payload.detail === "string" ? payload.detail : JSON.stringify(payload.detail, null, 2));
-      }
-
-      const preview = (payload.preview || [])
-        .map(
-          (row) =>
-            `${row.timestamp_utc}, ${row.pred_power_kw}, ${row.pred_p90_kw}`
-        )
-        .join("\n");
-
-      uploadResult.innerHTML = `
-        <p><strong>Job completed:</strong> ${payload.job_id}</p>
-        <p><strong>Rows written:</strong> ${payload.row_count}</p>
-        <p><a href="${payload.output_url}" target="_blank" rel="noreferrer">Download generated predictions</a></p>
-        <pre>${preview || "No preview available."}</pre>
-      `;
-    } catch (error) {
-      uploadResult.innerHTML = `<p><strong>Run failed.</strong></p><pre>${String(error.message || error)}</pre>`;
-    }
-  });
 }
 
 init();

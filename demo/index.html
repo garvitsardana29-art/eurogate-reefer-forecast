@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Eurogate Reefer Load Forecast</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260410a" />
   </head>
   <body>
     <div class="page-shell">
@@ -18,6 +18,7 @@
           <a href="#pipeline">Pipeline</a>
           <a href="#package">Package</a>
           <a href="#resources">Resources</a>
+          <a class="topbar-cta" href="./rerun.html">Rerun Lab</a>
         </div>
       </nav>
 
@@ -28,7 +29,7 @@
           <p class="hero-text">
             A terminal-level electricity forecasting dashboard for reefer containers, built from
             the supplied Eurogate package: historical reefer data, weather data, target timestamps,
-            recursive forecasting, and a final blended forecast.
+            and a strict day-ahead blended forecast that uses only 24-hour-lagged-or-older inputs.
           </p>
           <div class="hero-actions">
             <a class="primary-btn" href="#dashboard">Explore Forecast</a>
@@ -40,8 +41,8 @@
           <div class="metric-strip">
             <div class="metric-card accent">
               <span class="metric-label">Final Combined Score</span>
-              <strong class="metric-value">43.136</strong>
-              <span class="metric-note">Current selected blended `v2` candidate</span>
+              <strong class="metric-value" id="hero-combined-score">--</strong>
+              <span class="metric-note" id="hero-score-note">Computed from the current strict final CSV and visible target block</span>
             </div>
             <div class="status-card">
               <div class="status-pill">
@@ -49,27 +50,27 @@
                 Final package candidate prepared
               </div>
               <p>
-                The dashboard below focuses on what went into the package, which signals were
-                engineered, and how the terminal-level forecast was produced from the provided
-                challenge files.
+                The dashboard below shows the final strict forecasting package, the signals used
+                by the model, and the no-leakage workflow used to produce the terminal-level
+                forecast from the challenge files.
               </p>
             </div>
             <div class="metric-grid">
               <div class="mini-metric">
                 <span>MAE All</span>
-                <strong>61.013 kW</strong>
+                <strong id="hero-mae-all">--</strong>
               </div>
               <div class="mini-metric">
                 <span>MAE Peak</span>
-                <strong>26.726 kW</strong>
+                <strong id="hero-mae-peak">--</strong>
               </div>
               <div class="mini-metric">
                 <span>Pinball P90</span>
-                <strong>23.059</strong>
+                <strong id="hero-pinball">--</strong>
               </div>
               <div class="mini-metric">
                 <span>P90 Coverage</span>
-                <strong>0.888</strong>
+                <strong id="hero-coverage">--</strong>
               </div>
             </div>
           </div>
@@ -79,19 +80,19 @@
       <main>
         <section class="stats-band">
           <article class="stat-tile">
-            <span class="stat-label">Observed History</span>
-            <strong class="stat-value">8,403 hours</strong>
-            <span class="stat-detail">2025-01-01 to 2026-01-10</span>
+            <span class="stat-label">Training History Used</span>
+            <strong class="stat-value" id="stat-history-hours">--</strong>
+            <span class="stat-detail" id="stat-history-range">--</span>
           </article>
           <article class="stat-tile">
-            <span class="stat-label">Average Terminal Load</span>
-            <strong class="stat-value">1,066.837 kW</strong>
-            <span class="stat-detail">Across the full observed history</span>
+            <span class="stat-label">Average Training Load</span>
+            <strong class="stat-value" id="stat-avg-load">--</strong>
+            <span class="stat-detail">Across rows used before the target block</span>
           </article>
           <article class="stat-tile">
             <span class="stat-label">Average Active Reefers</span>
-            <strong class="stat-value">449.192</strong>
-            <span class="stat-detail">Peak observed count: 777</span>
+            <strong class="stat-value" id="stat-avg-active">--</strong>
+            <span class="stat-detail" id="stat-peak-active">--</span>
           </article>
           <article class="stat-tile">
             <span class="stat-label">Weather Anchors</span>
@@ -136,49 +137,15 @@
           </div>
         </section>
 
-        <section class="panel upload-panel">
-          <div class="panel-header">
-            <div>
-              <p class="eyebrow">Rerun Forecast</p>
-              <h2>Upload A New Package And Generate Predictions</h2>
-            </div>
-          </div>
-
-          <form id="upload-form" class="upload-form">
-            <label class="upload-field">
-              <span>Reefer zip</span>
-              <input type="file" id="reefer-zip" name="reefer_zip" accept=".zip" required />
-            </label>
-            <label class="upload-field">
-              <span>Weather zip</span>
-              <input type="file" id="weather-zip" name="weather_zip" accept=".zip" required />
-            </label>
-            <label class="upload-field">
-              <span>Target timestamps CSV</span>
-              <input type="file" id="target-csv" name="target_csv" accept=".csv" required />
-            </label>
-            <div class="upload-actions">
-              <button class="primary-btn upload-btn" type="submit">Run New Forecast</button>
-              <span class="upload-hint">This uses the local backend API and can take a while for large files.</span>
-            </div>
-          </form>
-
-          <div class="upload-status" id="upload-status">
-            <p>Backend status: checking...</p>
-          </div>
-
-          <div class="upload-result" id="upload-result"></div>
-        </section>
-
         <section class="section-grid" id="dashboard">
           <div class="panel panel-map">
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Terminal Context</p>
-                <h2>Terminal Forecast Context</h2>
+                <h2>Terminal Context</h2>
               </div>
               <label class="select-wrap">
-                <span>Reference point</span>
+                <span>Point</span>
                 <select id="zone-select">
                   <option value="overview">Terminal Forecast</option>
                   <option value="zentralgate">Zentralgate</option>
@@ -223,8 +190,8 @@
                 <span>Prediction series</span>
                 <select id="model-select">
                   <option value="blend">Strict Day-Ahead Blend</option>
-                  <option value="baseline">Baseline Recursive</option>
-                  <option value="xgb">Recursive XGBoost</option>
+                  <option value="baseline">Recursive Baseline Reference</option>
+                  <option value="xgb">Recursive XGBoost Reference</option>
                 </select>
               </label>
             </div>
@@ -324,7 +291,7 @@
             </article>
             <article class="pipeline-step">
               <span class="step-index">03</span>
-              <h3>Train Recursive Models</h3>
+              <h3>Train Day-Ahead Models</h3>
               <p>
                 Train direct day-ahead models using only `t-24h` or older information so every
                 target hour is predicted under the challenge's 24-hour-ahead rule.
@@ -344,34 +311,36 @@
         <section class="panel architecture-panel">
           <div class="panel-header">
             <div>
-              <p class="eyebrow">Deployment Notes</p>
-              <h2>Frontend Today, Backend If Needed</h2>
+              <p class="eyebrow">System Setup</p>
+              <h2>Frontend Plus Local Forecast API</h2>
             </div>
           </div>
 
           <div class="detail-grid">
             <div class="detail-card">
               <p class="eyebrow">Current Demo</p>
-              <h3>Static package explorer</h3>
+              <h3>Presentation UI + rerun flow</h3>
               <p>
-                The current website is a static presentation dashboard. It reads the prepared CSV
-                files from the package and is enough for sharing the model, metrics, and outputs.
+                The website acts as both a presentation layer and a lightweight rerun interface.
+                It reads prepared CSV outputs for the dashboard and can also call the local API for
+                a fresh forecast run.
               </p>
             </div>
             <div class="detail-card">
-              <p class="eyebrow">Why no backend yet</p>
-              <h3>Not required for this package</h3>
+              <p class="eyebrow">Backend</p>
+              <h3>FastAPI pipeline runner</h3>
               <p>
-                The challenge deliverable is a prediction file and documented approach. For that,
-                a lightweight static site is enough and easier to host and review.
+                The package includes a local FastAPI backend that accepts uploaded package files,
+                rebuilds the hourly datasets, reruns the forecasting pipeline, and returns a new
+                prediction CSV.
               </p>
             </div>
             <div class="detail-card">
-              <p class="eyebrow">Possible next step</p>
-              <h3>API for new uploads</h3>
+              <p class="eyebrow">Deployment Option</p>
+              <h3>Ready to host later</h3>
               <p>
-                If reviewers need to test additional data later, the next version can add a small
-                backend API to accept files, rerun the pipeline, and return a fresh forecast.
+                This same frontend and backend structure can be hosted later on a shared machine or
+                cloud service if reviewers need to run the forecasting workflow outside your laptop.
               </p>
             </div>
           </div>
@@ -380,7 +349,7 @@
         <section class="panel detail-grid">
           <div class="detail-card">
             <p class="eyebrow">Final Choice</p>
-            <h3>Why the final blend was selected</h3>
+            <h3>Why the strict final model was selected</h3>
             <p>
               The final selected submission is the strict day-ahead blend because it improved the
               clean no-leakage score while using only 24-hour-lagged-or-older information.
@@ -439,6 +408,11 @@
               <strong>GitHub Repository</strong>
               <p>Shareable project package with scripts, documentation, demo UI, and outputs.</p>
             </a>
+            <a class="resource-card" href="./rerun.html">
+              <span class="resource-type">Advanced Tool</span>
+              <strong>Rerun Forecast Lab</strong>
+              <p>Upload a fresh package, rerun the strict pipeline, and download a new prediction CSV.</p>
+            </a>
           </div>
         </section>
 
@@ -458,6 +432,6 @@
       </main>
     </div>
 
-    <script src="./app.js"></script>
+    <script src="./app.js?v=20260410a"></script>
   </body>
 </html>

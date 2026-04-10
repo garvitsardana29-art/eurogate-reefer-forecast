@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Eurogate Reefer Forecast Rerun Lab</title>
+    <link rel="stylesheet" href="./styles.css?v=20260410b" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <nav class="topbar">
+        <a class="brand-mark" href="./index.html">
+          <span class="brand-kicker">Eurogate</span>
+          <strong>Reefer Forecast Lab</strong>
+        </a>
+        <div class="topbar-links">
+          <a href="./index.html#dashboard">Dashboard</a>
+          <a href="./index.html#pipeline">Pipeline</a>
+          <a href="./index.html#resources">Resources</a>
+          <a class="topbar-cta" href="./rerun.html">Rerun Lab</a>
+        </div>
+      </nav>
+
+      <header class="hero hero-compact">
+        <div class="hero-copy">
+          <p class="eyebrow">Advanced Tool</p>
+          <h1>Rerun Forecast Lab</h1>
+          <p class="hero-text">
+            Upload a fresh challenge package, rerun the strict day-ahead pipeline, and download a
+            new prediction file. This page is for testing and workflow verification, not the main
+            presentation view.
+          </p>
+          <div class="hero-actions">
+            <a class="primary-btn" href="./index.html">Back To Dashboard</a>
+          </div>
+        </div>
+
+        <div class="hero-panel">
+          <div class="metric-strip">
+            <div class="metric-card accent">
+              <span class="metric-label">Backend Mode</span>
+              <strong class="metric-value">Upload + Run</strong>
+              <span class="metric-note">Uses the local FastAPI service and the strict final pipeline</span>
+            </div>
+            <div class="status-card" id="upload-status">
+              <p>Backend status: checking...</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="panel upload-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Package Upload</p>
+              <h2>Generate A Fresh Forecast</h2>
+            </div>
+          </div>
+
+          <form id="upload-form" class="upload-form">
+            <label class="upload-field">
+              <span>Reefer zip</span>
+              <input type="file" id="reefer-zip" name="reefer_zip" accept=".zip" required />
+            </label>
+            <label class="upload-field">
+              <span>Weather zip</span>
+              <input type="file" id="weather-zip" name="weather_zip" accept=".zip" required />
+            </label>
+            <label class="upload-field">
+              <span>Target timestamps CSV</span>
+              <input type="file" id="target-csv" name="target_csv" accept=".csv" required />
+            </label>
+            <div class="upload-actions">
+              <button class="primary-btn upload-btn" type="submit">Run New Forecast</button>
+              <span class="upload-hint">This can take a while for large package files.</span>
+            </div>
+          </form>
+
+          <div class="upload-result" id="upload-result"></div>
+        </section>
+
+        <section class="panel detail-grid">
+          <div class="detail-card">
+            <p class="eyebrow">What it does</p>
+            <h3>Runs the full strict pipeline</h3>
+            <p>
+              The backend rebuilds the hourly terminal and weather datasets, runs the strict
+              day-ahead blend, and returns a new prediction CSV for the uploaded target block.
+            </p>
+          </div>
+          <div class="detail-card">
+            <p class="eyebrow">When to use it</p>
+            <h3>Testing and verification</h3>
+            <p>
+              Use this page when someone wants to validate the workflow on another package. For the
+              main project story and final metrics, the dashboard page is the better view.
+            </p>
+          </div>
+          <div class="detail-card">
+            <p class="eyebrow">Output</p>
+            <h3>Submission-style CSV</h3>
+            <p>
+              The result includes `timestamp_utc`, `pred_power_kw`, and `pred_p90_kw`, ready to
+              inspect or download.
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./rerun.js?v=20260410b"></script>
+  </body>
+</html>
