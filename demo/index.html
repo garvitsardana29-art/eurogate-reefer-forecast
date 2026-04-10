@@ -8,13 +8,27 @@
   </head>
   <body>
     <div class="page-shell">
+      <nav class="topbar">
+        <a class="brand-mark" href="#top">
+          <span class="brand-kicker">Eurogate</span>
+          <strong>Reefer Forecast Lab</strong>
+        </a>
+        <div class="topbar-links">
+          <a href="#dashboard">Dashboard</a>
+          <a href="#pipeline">Pipeline</a>
+          <a href="#package">Package</a>
+          <a href="#resources">Resources</a>
+        </div>
+      </nav>
+
       <header class="hero">
         <div class="hero-copy">
           <p class="eyebrow">Hackathon Demo</p>
           <h1>Eurogate Reefer Load Forecast</h1>
           <p class="hero-text">
             A terminal-level electricity forecasting dashboard for reefer containers, built from
-            container history, weather aggregation, recursive modeling, and a final blended forecast.
+            the supplied Eurogate package: historical reefer data, weather data, target timestamps,
+            recursive forecasting, and a final blended forecast.
           </p>
           <div class="hero-actions">
             <a class="primary-btn" href="#dashboard">Explore Forecast</a>
@@ -26,21 +40,32 @@
           <div class="metric-strip">
             <div class="metric-card accent">
               <span class="metric-label">Final Combined Score</span>
-              <strong class="metric-value">52.375</strong>
-              <span class="metric-note">Current selected blended v2 candidate</span>
+              <strong class="metric-value">43.136</strong>
+              <span class="metric-note">Current selected blended `v2` candidate</span>
+            </div>
+            <div class="status-card">
+              <div class="status-pill">
+                <span class="status-dot"></span>
+                Final package candidate prepared
+              </div>
+              <p>
+                The dashboard below focuses on what went into the package, which signals were
+                engineered, and how the terminal-level forecast was produced from the provided
+                challenge files.
+              </p>
             </div>
             <div class="metric-grid">
               <div class="mini-metric">
                 <span>MAE All</span>
-                <strong>70.942 kW</strong>
+                <strong>61.013 kW</strong>
               </div>
               <div class="mini-metric">
                 <span>MAE Peak</span>
-                <strong>47.060 kW</strong>
+                <strong>26.726 kW</strong>
               </div>
               <div class="mini-metric">
                 <span>Pinball P90</span>
-                <strong>13.931</strong>
+                <strong>23.059</strong>
               </div>
               <div class="mini-metric">
                 <span>P90 Coverage</span>
@@ -75,17 +100,87 @@
           </article>
         </section>
 
+        <section class="panel package-panel" id="package">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Package Structure</p>
+              <h2>What Was Provided And What Was Built</h2>
+            </div>
+          </div>
+
+          <div class="benchmark-grid">
+            <article class="benchmark-card primary">
+              <span class="benchmark-label">Provided Raw Inputs</span>
+              <strong class="benchmark-value">3 key files</strong>
+              <p>
+                `reefer_release.zip`, `wetterdaten.zip`, and `target_timestamps.csv` formed the
+                base package for the forecasting task.
+              </p>
+            </article>
+            <article class="benchmark-card">
+              <span class="benchmark-label">Prepared Modeling Tables</span>
+              <strong class="benchmark-value">2 derived datasets</strong>
+              <p>
+                `hourly_terminal_dataset.csv` and `hourly_weather_dataset.csv` were created to make
+                the forecasting workflow reproducible and terminal-level.
+              </p>
+            </article>
+            <article class="benchmark-card">
+              <span class="benchmark-label">Final Deliverables</span>
+              <strong class="benchmark-value">Code + CSV + Demo</strong>
+              <p>
+                The final package includes the forecasting scripts, `approach.md`, the selected
+                prediction file, and this presentation dashboard.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel upload-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Rerun Forecast</p>
+              <h2>Upload A New Package And Generate Predictions</h2>
+            </div>
+          </div>
+
+          <form id="upload-form" class="upload-form">
+            <label class="upload-field">
+              <span>Reefer zip</span>
+              <input type="file" id="reefer-zip" name="reefer_zip" accept=".zip" required />
+            </label>
+            <label class="upload-field">
+              <span>Weather zip</span>
+              <input type="file" id="weather-zip" name="weather_zip" accept=".zip" required />
+            </label>
+            <label class="upload-field">
+              <span>Target timestamps CSV</span>
+              <input type="file" id="target-csv" name="target_csv" accept=".csv" required />
+            </label>
+            <div class="upload-actions">
+              <button class="primary-btn upload-btn" type="submit">Run New Forecast</button>
+              <span class="upload-hint">This uses the local backend API and can take a while for large files.</span>
+            </div>
+          </form>
+
+          <div class="upload-status" id="upload-status">
+            <p>Backend status: checking...</p>
+          </div>
+
+          <div class="upload-result" id="upload-result"></div>
+        </section>
+
         <section class="section-grid" id="dashboard">
           <div class="panel panel-map">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Terminal View</p>
-                <h2>Interactive Terminal Map</h2>
+                <p class="eyebrow">Terminal Context</p>
+                <h2>Terminal Forecast Context</h2>
               </div>
               <label class="select-wrap">
-                <span>Focus area</span>
+                <span>Reference point</span>
                 <select id="zone-select">
-                  <option value="overview">Terminal Overview</option>
+                  <option value="overview">Terminal Forecast</option>
                   <option value="zentralgate">Zentralgate</option>
                   <option value="vc_halle3">VC Halle 3</option>
                 </select>
@@ -97,7 +192,7 @@
                 <div class="water-band"></div>
                 <div class="terminal-block"></div>
                 <button class="map-node node-overview active" data-zone="overview">
-                  <span>Eurogate Terminal</span>
+                  <span>Forecasted Terminal</span>
                 </button>
                 <button class="map-node node-zentralgate" data-zone="zentralgate">
                   <span>Zentralgate</span>
@@ -108,10 +203,10 @@
               </div>
 
               <aside class="zone-panel">
-                <h3 id="zone-title">Terminal Overview</h3>
+                <h3 id="zone-title">Terminal Forecast</h3>
                 <p id="zone-description">
-                  The dataset describes one reefer terminal. The map focuses on the full terminal
-                  and the two named weather locations used in the provided data.
+                  The dataset describes one reefer terminal. This panel provides context for the
+                  terminal-wide forecast and the weather reference points used in the package.
                 </p>
                 <ul class="zone-facts" id="zone-facts"></ul>
               </aside>
@@ -127,7 +222,7 @@
               <label class="select-wrap">
                 <span>Prediction series</span>
                 <select id="model-select">
-                  <option value="blend">Final Blend v2</option>
+                  <option value="blend">Strict Day-Ahead Blend</option>
                   <option value="baseline">Baseline Recursive</option>
                   <option value="xgb">Recursive XGBoost</option>
                 </select>
@@ -142,10 +237,63 @@
               </div>
               <div class="chart-metrics" id="chart-metrics"></div>
             </div>
+            <p class="chart-note">
+              This chart is terminal-wide, so it stays the same when you switch map focus. The map
+              changes the context panel, while the chart compares the global terminal forecast for
+              the visible January 2026 public period.
+            </p>
 
             <div class="chart-wrap">
               <svg id="forecast-chart" viewBox="0 0 980 360" preserveAspectRatio="none"></svg>
             </div>
+          </div>
+        </section>
+
+        <section class="panel feature-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Feature Inventory</p>
+              <h2>Signals Used From The Package</h2>
+            </div>
+          </div>
+
+          <div class="feature-grid">
+            <article class="feature-card">
+              <h3>Terminal Load History</h3>
+              <ul>
+                <li>hourly terminal total load</li>
+                <li>lagged load features</li>
+                <li>rolling averages and recent history</li>
+                <li>hour-of-day and weekday patterns</li>
+              </ul>
+            </article>
+            <article class="feature-card">
+              <h3>Reefer Operational Signals</h3>
+              <ul>
+                <li>active container count</li>
+                <li>ambient, setpoint, return, and supply temperatures</li>
+                <li>setpoint min, max, and spread</li>
+                <li>frozen, cold, chilled, and warm bucket counts</li>
+              </ul>
+            </article>
+            <article class="feature-card">
+              <h3>Terminal Mix Proxies</h3>
+              <ul>
+                <li>stack tier counts</li>
+                <li>container size counts</li>
+                <li>hardware family counts</li>
+                <li>customer concentration and mix pressure proxies</li>
+              </ul>
+            </article>
+            <article class="feature-card">
+              <h3>Weather Package</h3>
+              <ul>
+                <li>hourly temperature</li>
+                <li>wind speed</li>
+                <li>wind direction components</li>
+                <li>Zentralgate and VC Halle 3 weather anchors</li>
+              </ul>
+            </article>
           </div>
         </section>
 
@@ -178,38 +326,73 @@
               <span class="step-index">03</span>
               <h3>Train Recursive Models</h3>
               <p>
-                Train a stable baseline recursive model and a recursive XGBoost model, then forecast
-                the public target block hour by hour.
+                Train direct day-ahead models using only `t-24h` or older information so every
+                target hour is predicted under the challenge's 24-hour-ahead rule.
               </p>
             </article>
             <article class="pipeline-step">
               <span class="step-index">04</span>
               <h3>Blend For Final Submission</h3>
               <p>
-                Combine the baseline and XGBoost forecasts with a two-regime rule so lower-load
-                hours lean more on the baseline and peak-like hours lean more on XGBoost.
+                Combine an XGBoost day-ahead model and a Ridge day-ahead model using weights chosen
+                on December validation only, then calibrate `pred_p90_kw` from that same holdout.
               </p>
             </article>
+          </div>
+        </section>
+
+        <section class="panel architecture-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Deployment Notes</p>
+              <h2>Frontend Today, Backend If Needed</h2>
+            </div>
+          </div>
+
+          <div class="detail-grid">
+            <div class="detail-card">
+              <p class="eyebrow">Current Demo</p>
+              <h3>Static package explorer</h3>
+              <p>
+                The current website is a static presentation dashboard. It reads the prepared CSV
+                files from the package and is enough for sharing the model, metrics, and outputs.
+              </p>
+            </div>
+            <div class="detail-card">
+              <p class="eyebrow">Why no backend yet</p>
+              <h3>Not required for this package</h3>
+              <p>
+                The challenge deliverable is a prediction file and documented approach. For that,
+                a lightweight static site is enough and easier to host and review.
+              </p>
+            </div>
+            <div class="detail-card">
+              <p class="eyebrow">Possible next step</p>
+              <h3>API for new uploads</h3>
+              <p>
+                If reviewers need to test additional data later, the next version can add a small
+                backend API to accept files, rerun the pipeline, and return a fresh forecast.
+              </p>
+            </div>
           </div>
         </section>
 
         <section class="panel detail-grid">
           <div class="detail-card">
             <p class="eyebrow">Final Choice</p>
-            <h3>Why the v2 blend won</h3>
+            <h3>Why the final blend was selected</h3>
             <p>
-              The baseline model remained stable under recursive forecasting, while the recursive
-              XGBoost model improved peak behavior. The final two-regime blend captured both
-              strengths more effectively than a single fixed blend weight.
+              The final selected submission is the strict day-ahead blend because it improved the
+              clean no-leakage score while using only 24-hour-lagged-or-older information.
             </p>
           </div>
           <div class="detail-card">
-            <p class="eyebrow">Leakage Handling</p>
-            <h3>Why the core setup is still causal</h3>
+            <p class="eyebrow">Package Logic</p>
+            <h3>How raw files became forecasting inputs</h3>
             <p>
-              The two main recursive models are trained before the target block and forecast forward.
-              The final blend weights were tuned on the visible public period, but the base models
-              themselves are recursive and history-driven.
+              Raw container-level reefer rows were aggregated into a terminal-hour table, weather
+              rows were converted into hourly environmental features, and both were used to build a
+              reproducible forecasting workflow.
             </p>
           </div>
           <div class="detail-card">
@@ -222,6 +405,43 @@
           </div>
         </section>
 
+        <section class="panel resources-panel" id="resources">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Project Assets</p>
+              <h2>What Reviewers Can Open</h2>
+            </div>
+          </div>
+
+          <div class="resource-grid">
+            <a class="resource-card" href="../approach.md">
+              <span class="resource-type">Documentation</span>
+              <strong>Approach Writeup</strong>
+              <p>Methodology, feature engineering, modeling logic, and reproduction steps.</p>
+            </a>
+            <a class="resource-card" href="../README.md">
+              <span class="resource-type">Project Guide</span>
+              <strong>Repository Overview</strong>
+              <p>Main workflow, selected output, demo instructions, and package structure.</p>
+            </a>
+            <a class="resource-card" href="../predictions_strict_day_ahead_blend.csv">
+              <span class="resource-type">Submission</span>
+              <strong>Final Prediction File</strong>
+              <p>The selected strict day-ahead submission candidate for the public target block.</p>
+            </a>
+            <a
+              class="resource-card"
+              href="https://github.com/garvitsardana29-art/eurogate-reefer-forecast"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span class="resource-type">Code</span>
+              <strong>GitHub Repository</strong>
+              <p>Shareable project package with scripts, documentation, demo UI, and outputs.</p>
+            </a>
+          </div>
+        </section>
+
         <section class="panel command-panel">
           <div class="panel-header">
             <div>
@@ -229,9 +449,11 @@
               <h2>How To Reproduce The Final Result</h2>
             </div>
           </div>
-<pre><code>python3 /Users/sardana/Downloads/participant_package/final_recursive_submission.py
-/Users/sardana/Downloads/participant_package/.venv_check/bin/python /Users/sardana/Downloads/participant_package/xgb_recursive_feature_submission.py
-python3 /Users/sardana/Downloads/participant_package/blended_submission_v2.py</code></pre>
+<pre><code>python3 /Users/sardana/Downloads/participant_package/step1_build_hourly_terminal_dataset.py
+/Users/sardana/Downloads/participant_package/.venv_check/bin/python /Users/sardana/Downloads/participant_package/strict_day_ahead_blend_submission.py
+
+# backend mode
+/Users/sardana/Downloads/participant_package/.venv_check/bin/python -m uvicorn backend_api:app --host 0.0.0.0 --port 8000</code></pre>
         </section>
       </main>
     </div>

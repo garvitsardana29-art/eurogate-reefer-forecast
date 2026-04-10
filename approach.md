@@ -2,24 +2,31 @@
 
 ## Overview
 
-The challenge asks for an hourly forecast of the **combined reefer electricity consumption of the terminal**, plus an upper-risk estimate `pred_p90_kw`.
+The challenge asks for an hourly forecast of the **combined reefer electricity consumption of the terminal**, plus an upper estimate `pred_p90_kw`.
 
-The scoring function is:
+The score is:
 
 `0.5 * mae_all + 0.3 * mae_peak + 0.2 * pinball_p90`
 
-So the final solution must balance:
+So the final model needs to balance:
 
-- good average accuracy
+- good overall accuracy
 - strong peak-hour behavior
-- a useful upper estimate
+- a useful and not overly conservative `p90`
+
+The final selected submission in this package is a **strict 24-hour-ahead day-ahead blend** that follows the challenge rules:
+
+- only supplied files are used
+- model selection is done on **pre-January** history only
+- features for a target hour use information from **24 hours earlier or older**
+- no January 2026 public target rows are used for tuning
 
 ## 1. Data preparation
 
 ### 1.1 Terminal-hour aggregation
 
 The reefer source data is container-level, while the challenge target is terminal-level.  
-So the first step was to aggregate the raw reefer rows into a single hourly terminal dataset.
+So the first step was to aggregate raw reefer rows into a single hourly terminal dataset.
 
 Script:
 
@@ -33,16 +40,17 @@ This hourly table includes:
 
 - terminal total load in kW
 - active container count
-- temperature summaries
-- setpoint mix
-- stack-tier proxies
+- ambient / setpoint / return / supply temperature summaries
+- setpoint min / max / spread
+- frozen / cold / chilled / warm bucket counts
+- stack-tier counts and tier-level proxies
 - hardware mix
 - customer concentration features
-- an `is_observed_hour` flag
+- `is_observed_hour`
 
 ### 1.2 Weather aggregation
 
-The supplied weather data was aggregated to hourly level.
+The supplied weather package was also aggregated to hourly level during development.
 
 Script:
 
@@ -52,163 +60,191 @@ Output:
 
 - [hourly_weather_dataset.csv](/Users/sardana/Downloads/participant_package/hourly_weather_dataset.csv)
 
-Weather was tested during model development, but it did not become the main driver of the final selected submission candidate.
+Weather was tested during modeling, but it did not become the dominant driver of the final selected rules-safe submission.
 
-## 2. Modeling strategy
+## 2. Final modeling strategy
 
-The core modeling philosophy was:
-
-1. build a good **time-series model for total terminal load**
-2. then add operational features only if they help
-
-This matches the organizer guidance to focus first on the overall power time series and then layer in specific features like container mix and weather.
-
-### 2.1 Recursive baseline model
-
-The first production-ready model was a recursive baseline that:
-
-- trains on history before the target start
-- forecasts the target block hour by hour
-- uses lag-based terminal load structure
-- applies a residual correction and calibrated `p90`
+The final selected model is a **direct day-ahead blend**, not a public-period-tuned recursive blend.
 
 Script:
 
-- [final_recursive_submission.py](/Users/sardana/Downloads/participant_package/final_recursive_submission.py)
-
-Primary output:
-
-- [predictions.csv](/Users/sardana/Downloads/participant_package/predictions.csv)
-
-### 2.2 Recursive XGBoost model
-
-A second model used a recursive XGBoost setup:
-
-- future reefer-state proxy features are forecast recursively
-- load is then predicted from recursive reefer-state features plus load history
-
-Script:
-
-- [xgb_recursive_feature_submission.py](/Users/sardana/Downloads/participant_package/xgb_recursive_feature_submission.py)
-
-Primary output:
-
-- [predictions_xgb_recursive.csv](/Users/sardana/Downloads/participant_package/predictions_xgb_recursive.csv)
-
-This model was especially useful for reducing peak-hour error.
-
-### 2.3 Final selected submission candidate
-
-The current selected submission candidate is a **two-regime blend** of the baseline and recursive XGBoost forecasts.
-
-Script:
-
-- [blended_submission_v2.py](/Users/sardana/Downloads/participant_package/blended_submission_v2.py)
+- [strict_day_ahead_blend_submission.py](/Users/sardana/Downloads/participant_package/strict_day_ahead_blend_submission.py)
 
 Output:
 
-- [predictions_blended_v2.csv](/Users/sardana/Downloads/participant_package/predictions_blended_v2.csv)
+- [predictions_strict_day_ahead_blend.csv](/Users/sardana/Downloads/participant_package/predictions_strict_day_ahead_blend.csv)
 
-The final blend uses:
+### 2.1 Why this model was selected
 
-- one blend weight for lower-load hours
-- a different blend weight for higher-load / peak-like hours
-- a calibrated `p90` spread based on the baseline forecast spread
+This final version improved significantly over the older strict baseline while still following the rules cleanly.
 
-Current regime settings:
+The selected approach:
 
-- load threshold: `880 kW`
-- baseline weight below threshold: `0.55`
-- baseline weight above threshold: `0.10`
-- `p90` spread scale: `0.70`
-- `p90` spread shift: `0 kW`
+1. trains only on history before the target period
+2. uses **day-ahead features** that would be available at forecast issue time
+3. blends two direct models chosen using **December 2025 validation only**
 
-This `v2` blend is the package's current **best-scoring local public candidate**.
-The baseline recursive model remains the simpler causal reference model used earlier in the workflow.
+### 2.2 Direct day-ahead formulation
+
+For a target hour `t`, the model uses only information from `t-24h` or earlier.
+
+That means the forecast can use:
+
+- `terminal_total_kw` at lags `24`, `48`, `72`, `168`
+- summary statistics over earlier 24-hour and 7-day windows
+- lagged operational features at `24h` and `168h`
+- calendar features such as hour-of-day and weekday
+
+It does **not** use:
+
+- same-day future information
+- `t-1` or other near-target values that would not be known 24 hours ahead
+- January public target rows for tuning
+
+### 2.3 Blend components
+
+The final strict blend combines:
+
+- an **XGBoost day-ahead model**
+- a **Ridge day-ahead model**
+
+Blend weights are selected on the holdout window:
+
+- `2025-12-11` to `2025-12-31`
+
+Selected final weights:
+
+- XGBoost weight: `0.40`
+- Ridge weight: `0.60`
+- Naive same-hour-yesterday weight: `0.00`
+
+`pred_p90_kw` is built from a December-calibrated uplift:
+
+- scale: `1.00`
+- shift: `0.0 kW`
+- base uplift from December validation: `187.538 kW`
 
 ## 3. Feature engineering
 
-The main feature groups used during development were:
+The final strict model uses these main feature groups:
 
-- lagged terminal load
-- rolling load statistics
-- hour-of-day and weekday patterns
-- container-count and reefer-mix features
-- stack-tier proxies
-- hardware mix
-- customer concentration proxies
+### 3.1 Load history
 
-Several larger ML variants were also tested, but many of them degraded in the fully recursive forecast setting even when they looked strong on holdout tests.
+- `lag_load_24`
+- `lag_load_48`
+- `lag_load_72`
+- `lag_load_168`
+- mean / std / max over the earlier 24-hour issue window
+- mean over the corresponding earlier week window
+- day-vs-week deltas
+
+### 3.2 Calendar structure
+
+- `hour_sin`
+- `hour_cos`
+- `dow_sin`
+- `dow_cos`
+- `is_weekend`
+
+### 3.3 Operational state at issue time
+
+Using only lagged values:
+
+- `active_container_count`
+- `avg_temperature_ambient`
+- `avg_temperature_setpoint`
+- `count_setpoint_frozen`
+- `count_setpoint_warm`
+- `count_stack_tier_3`
+- `top_tier_extreme_pressure`
+- `customer_hhi_top5`
+- `count_hw_ML3`
+- `mixed_setpoint_pressure`
+
+For each of these, the model uses:
+
+- `lag24`
+- `lag168`
+- `delta_day_week`
+
+### 3.4 Interaction features
+
+- ambient temperature × active container count
+- stack tier 3 × ML3 hardware
+- warm minus frozen gap
 
 ## 4. Validation logic
 
-The main validation approach used time-based holdouts before January 2026.
+The final strict selection was done with **forward-only time validation**.
 
-Typical evaluation focused on:
+Model selection window:
+
+- validation start: `2025-12-11`
+- target start: `2026-01-01`
+
+This means:
+
+- training for model selection uses only data before `2025-12-11`
+- blend weights and `p90` calibration are chosen on late December only
+- January 2026 is left untouched for final evaluation and output generation
+
+Tracked metrics:
 
 - `MAE all`
 - `MAE peak`
 - `Pinball p90`
 - combined score
 
-The baseline historical backtest is produced by:
+## 5. Final selected result
 
-- [final_recursive_submission.py](/Users/sardana/Downloads/participant_package/final_recursive_submission.py)
+The selected final submission file is:
 
-and prints:
-
-- `MAE all = 134.923 kW`
-- `MAE peak = 151.385 kW`
-- `Pinball p90 = 27.349`
-- combined score = `118.347`
-
-## 5. Final current candidate
-
-The currently selected package candidate is:
-
-- [predictions_blended_v2.csv](/Users/sardana/Downloads/participant_package/predictions_blended_v2.csv)
+- [predictions_strict_day_ahead_blend.csv](/Users/sardana/Downloads/participant_package/predictions_strict_day_ahead_blend.csv)
 
 On the locally visible January 2026 public period, it produced:
 
-- `MAE all = 70.942 kW`
-- `MAE peak = 47.060 kW`
-- `Pinball p90 = 13.931`
-- `P90 coverage = 0.888`
-- combined score = `52.375`
+- `MAE all = 61.013 kW`
+- `MAE peak = 26.726 kW`
+- `Pinball p90 = 23.059`
+- `P90 coverage = 1.000`
+- combined score = `43.136`
 
-This is the strongest candidate generated in the final package workflow.
+This is the final package choice because it improves strongly over the older strict baseline while keeping the methodology rules-safe.
 
-## 6. Final package contents
+## 6. Reproducibility
 
-The final package is organized around:
+To reproduce the final selected submission:
 
-- data preparation scripts
-- the recursive baseline model
-- the recursive XGBoost model
-- the final `v2` blend
-- the final selected prediction file
-- the demo UI
-- the written approach and deployment instructions
+```bash
+python3 /Users/sardana/Downloads/participant_package/step1_build_hourly_terminal_dataset.py
+/Users/sardana/Downloads/participant_package/.venv_check/bin/python /Users/sardana/Downloads/participant_package/strict_day_ahead_blend_submission.py
+```
 
-Main package entry points:
+If you also want the hourly weather table regenerated:
+
+```bash
+python3 /Users/sardana/Downloads/participant_package/step3_build_hourly_weather_dataset.py
+```
+
+The final prediction file is:
+
+- [predictions_strict_day_ahead_blend.csv](/Users/sardana/Downloads/participant_package/predictions_strict_day_ahead_blend.csv)
+
+## 7. Package structure
+
+The package is organized around:
+
+- raw challenge inputs
+- hourly prepared datasets
+- the final strict day-ahead submission script
+- documentation
+- demo UI / backend
+
+Main entry points:
 
 - [README.md](/Users/sardana/Downloads/participant_package/README.md)
 - [DEPLOY.md](/Users/sardana/Downloads/participant_package/DEPLOY.md)
 - [demo/index.html](/Users/sardana/Downloads/participant_package/demo/index.html)
-
-## 7. Reproducibility
-
-To reproduce the current selected candidate:
-
-```bash
-python3 /Users/sardana/Downloads/participant_package/final_recursive_submission.py
-/Users/sardana/Downloads/participant_package/.venv_check/bin/python /Users/sardana/Downloads/participant_package/xgb_recursive_feature_submission.py
-python3 /Users/sardana/Downloads/participant_package/blended_submission_v2.py
-```
-
-This produces:
-
-- [predictions_blended_v2.csv](/Users/sardana/Downloads/participant_package/predictions_blended_v2.csv)
 
 ## 8. LLM usage
 
@@ -220,4 +256,4 @@ LLMs were used for:
 - evaluation workflow design
 - documentation support
 
-All final modeling choices were checked by running code on historical holdout periods and comparing forecast metrics.
+All final modeling choices were checked by running code on historical time-based validation windows and comparing forecast metrics.

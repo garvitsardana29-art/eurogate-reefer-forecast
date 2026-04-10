@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import math
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingRegressor
 from xgboost import XGBRegressor
 
+from package_paths import get_package_dir
 
-PUBLIC_DIR = Path(__file__).resolve().parent
+PUBLIC_DIR = get_package_dir(__file__)
 HOURLY_DATASET_CSV = PUBLIC_DIR / "hourly_terminal_dataset.csv"
 TARGETS_CSV = PUBLIC_DIR / "target_timestamps.csv"
 OUTPUT_CSV = PUBLIC_DIR / "predictions_xgb_recursive.csv"

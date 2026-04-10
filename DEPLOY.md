@@ -2,7 +2,7 @@
 
 This package is easiest to share in two ways:
 
-1. **GitLab** for the full codebase and documentation
+1. **GitHub** for the full codebase and documentation
 2. **Google Cloud Storage static hosting** for the demo UI
 
 ## What to share
@@ -12,13 +12,11 @@ For the repository, keep these important files:
 - `approach.md`
 - `README.md`
 - `DEPLOY.md`
-- `final_recursive_submission.py`
-- `xgb_recursive_feature_submission.py`
-- `blended_submission_v2.py`
+- `strict_day_ahead_blend_submission.py`
 - `step1_build_hourly_terminal_dataset.py`
 - `step2_backtest_baseline.py`
 - `step3_build_hourly_weather_dataset.py`
-- `predictions_blended_v2.csv`
+- `predictions_strict_day_ahead_blend.csv`
 - `hourly_terminal_dataset.csv`
 - `hourly_weather_dataset.csv`
 - `reefer_release.zip`
@@ -26,9 +24,9 @@ For the repository, keep these important files:
 - `target_timestamps.csv`
 - `demo/`
 
-## GitLab
+## GitHub
 
-### 1. Create a new empty GitLab repository
+### 1. Create a new empty GitHub repository
 
 Example name:
 
@@ -45,9 +43,9 @@ git add .
 git commit -m "Initial Eurogate forecasting submission package"
 ```
 
-### 3. Connect to GitLab
+### 3. Connect to GitHub
 
-Replace the URL below with your actual GitLab repo URL:
+Replace the URL below with your actual GitHub repo URL:
 
 ```bash
 git remote add origin <YOUR_GITLAB_REPO_URL>
@@ -91,7 +89,7 @@ Also upload these CSV files to the bucket root, because the demo reads them:
 
 - `predictions.csv`
 - `predictions_xgb_recursive.csv`
-- `predictions_blended_v2.csv`
+- `predictions_strict_day_ahead_blend.csv`
 - `hourly_terminal_dataset.csv`
 
 ### 3. Keep the same folder structure
@@ -104,7 +102,7 @@ Your bucket should look like:
 /demo/app.js
 /predictions.csv
 /predictions_xgb_recursive.csv
-/predictions_blended_v2.csv
+/predictions_strict_day_ahead_blend.csv
 /hourly_terminal_dataset.csv
 ```
 
@@ -122,6 +120,6 @@ https://storage.googleapis.com/<bucket-name>/demo/index.html
 
 ## Notes
 
-- If you only want to share the final result, the most important file is `predictions_blended_v2.csv`.
-- If you want a stricter rules-first package, keep `predictions.csv` as the submission file instead.
+- If you only want to share the final result, the most important file is `predictions_strict_day_ahead_blend.csv`.
+- The demo still keeps older comparison CSVs so reviewers can inspect baseline vs newer variants visually.
 - The demo is presentation-focused and does not need a backend server.

@@ -4,12 +4,12 @@ import csv
 import math
 from copy import deepcopy
 from datetime import datetime, timedelta
-from pathlib import Path
 
+from package_paths import get_package_dir
 from step2_backtest_baseline import run_backtest_report
 
 
-PUBLIC_DIR = Path(__file__).resolve().parent
+PUBLIC_DIR = get_package_dir(__file__)
 HOURLY_DATASET_CSV = PUBLIC_DIR / "hourly_terminal_dataset.csv"
 TARGETS_CSV = PUBLIC_DIR / "target_timestamps.csv"
 OUTPUT_CSV = PUBLIC_DIR / "predictions.csv"
@@ -458,4 +458,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

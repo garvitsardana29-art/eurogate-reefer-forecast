@@ -1,38 +1,39 @@
 const zoneDetails = {
   overview: {
-    title: "Terminal Overview",
+    title: "Terminal Forecast",
     description:
-      "The challenge data represents one reefer terminal. The dashboard focuses on total hourly terminal load, not individual container forecasts.",
+      "The challenge predicts one combined hourly reefer electricity load series for the terminal. This is a terminal-wide forecast, not a separate forecast for each point on the map.",
     facts: [
-      ["Forecast target", "Combined hourly reefer electricity load at the terminal"],
+      ["Forecast target", "Combined hourly reefer electricity usage for the full terminal"],
+      ["What the map means", "The extra points are weather reference locations inside the same terminal context"],
       ["Observed history", "8,403 hourly rows from January 2025 to January 2026"],
-      ["Operational signals", "Container count, setpoint mix, stack-tier proxies, hardware mix"],
+      ["Operational signals", "Container count, setpoint mix, stack-tier proxies, and hardware mix"],
     ],
   },
   zentralgate: {
     title: "Zentralgate",
     description:
-      "Zentralgate appears in the weather dataset and acts as one of the terminal-side environmental reference points used during experimentation.",
+      "Zentralgate is one of the named weather reference locations in the package. It does not have its own separate forecast curve; it provides environmental context for the terminal-wide model.",
     facts: [
-      ["Weather role", "Temperature, wind, and wind-direction source"],
-      ["UI use", "Shown as a site anchor on the terminal map"],
-      ["Model note", "Weather was tested but was not the main driver of the final blended forecast"],
+      ["Role in package", "Temperature, wind, and wind-direction reference source"],
+      ["How to read this", "Switching here changes the context panel, not the global terminal forecast chart"],
+      ["Model note", "Weather was tested but was not the dominant driver of the final selected forecast"],
     ],
   },
   vc_halle3: {
     title: "VC Halle 3",
     description:
-      "VC Halle 3 is the second named weather location in the package and gives another environmental view of terminal conditions.",
+      "VC Halle 3 is the second named weather reference location in the package and offers another environmental view of the same terminal conditions.",
     facts: [
-      ["Weather role", "Temperature, wind, and wind-direction source"],
-      ["Why it matters", "Helps frame spatial context inside the same terminal"],
-      ["Model note", "Used during feature testing and dashboard storytelling"],
+      ["Role in package", "Temperature, wind, and wind-direction reference source"],
+      ["Why it matters", "Helps describe spatial weather context inside the same terminal"],
+      ["Model note", "Used during feature testing and for explaining the package structure"],
     ],
   },
 };
 
 const modelDisplay = {
-  blend: { key: "blend", name: "Final Blend v2", color: "#145b62", p90Color: "#d26842" },
+  blend: { key: "blend", name: "Strict Day-Ahead Blend", color: "#145b62", p90Color: "#d26842" },
   baseline: { key: "baseline", name: "Baseline Recursive", color: "#577590", p90Color: "#b08968" },
   xgb: { key: "xgb", name: "Recursive XGBoost", color: "#0d7f72", p90Color: "#ef8354" },
 };
@@ -45,6 +46,9 @@ const zoneFacts = document.getElementById("zone-facts");
 const modelSelect = document.getElementById("model-select");
 const chartMetrics = document.getElementById("chart-metrics");
 const svg = document.getElementById("forecast-chart");
+const uploadForm = document.getElementById("upload-form");
+const uploadStatus = document.getElementById("upload-status");
+const uploadResult = document.getElementById("upload-result");
 
 function updateZone(zoneKey) {
   const zone = zoneDetails[zoneKey];
@@ -189,7 +193,7 @@ async function loadData() {
     fetch("../hourly_terminal_dataset.csv").then((res) => res.text()),
     fetch("../predictions.csv").then((res) => res.text()),
     fetch("../predictions_xgb_recursive.csv").then((res) => res.text()),
-    fetch("../predictions_blended_v2.csv").then((res) => res.text()),
+    fetch("../predictions_strict_day_ahead_blend.csv").then((res) => res.text()),
   ]);
 
   const actualRows = parseCsv(actualCsv)
@@ -222,6 +226,13 @@ async function init() {
   updateZone("overview");
 
   try {
+    const health = await fetch("/api/health").then((res) => res.json());
+    uploadStatus.innerHTML = `<p>Backend status: <strong>${health.status}</strong> · ${health.timestamp_utc}</p>`;
+  } catch (error) {
+    uploadStatus.innerHTML = `<p>Backend status: <strong>offline</strong>. Start the backend with <code>uvicorn backend_api:app --host 0.0.0.0 --port 8000</code>.</p>`;
+  }
+
+  try {
     const rows = await loadData();
     buildChart(rows, "blend");
     modelSelect.addEventListener("change", (event) => buildChart(rows, event.target.value));
@@ -229,6 +240,40 @@ async function init() {
     chartMetrics.innerHTML = `<span>Could not load CSV data. Run a local server like <strong>python3 -m http.server 8000</strong> from the participant package folder.</span>`;
     console.error(error);
   }
+
+  uploadForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(uploadForm);
+    uploadResult.innerHTML = "<p>Uploading files and running the forecast pipeline...</p>";
+
+    try {
+      const response = await fetch("/api/jobs", {
+        method: "POST",
+        body: formData,
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(typeof payload.detail === "string" ? payload.detail : JSON.stringify(payload.detail, null, 2));
+      }
+
+      const preview = (payload.preview || [])
+        .map(
+          (row) =>
+            `${row.timestamp_utc}, ${row.pred_power_kw}, ${row.pred_p90_kw}`
+        )
+        .join("\n");
+
+      uploadResult.innerHTML = `
+        <p><strong>Job completed:</strong> ${payload.job_id}</p>
+        <p><strong>Rows written:</strong> ${payload.row_count}</p>
+        <p><a href="${payload.output_url}" target="_blank" rel="noreferrer">Download generated predictions</a></p>
+        <pre>${preview || "No preview available."}</pre>
+      `;
+    } catch (error) {
+      uploadResult.innerHTML = `<p><strong>Run failed.</strong></p><pre>${String(error.message || error)}</pre>`;
+    }
+  });
 }
 
 init();

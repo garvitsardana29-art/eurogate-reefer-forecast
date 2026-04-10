@@ -3,10 +3,11 @@ from __future__ import annotations
 import csv
 import math
 from datetime import datetime, timedelta
-from pathlib import Path
+
+from package_paths import get_package_dir
 
 
-PUBLIC_DIR = Path(__file__).resolve().parent
+PUBLIC_DIR = get_package_dir(__file__)
 HOURLY_DATASET_CSV = PUBLIC_DIR / "hourly_terminal_dataset.csv"
 WEATHER_DATASET_CSV = PUBLIC_DIR / "hourly_weather_dataset.csv"
 DEBUG_DIR = PUBLIC_DIR / "archive_experiments" / "debug"

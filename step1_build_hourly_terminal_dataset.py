@@ -5,10 +5,11 @@ import io
 import zipfile
 from collections import defaultdict
 from datetime import datetime, timedelta
-from pathlib import Path
+
+from package_paths import get_package_dir
 
 
-PUBLIC_DIR = Path(__file__).resolve().parent
+PUBLIC_DIR = get_package_dir(__file__)
 REEFER_ZIP = PUBLIC_DIR / "reefer_release.zip"
 OUTPUT_CSV = PUBLIC_DIR / "hourly_terminal_dataset.csv"
 

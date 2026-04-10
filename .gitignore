@@ -8,6 +8,7 @@ __pycache__/
 
 # Large local-only folders
 archive_experiments/
+jobs/
 
 # Raw challenge archives are kept local because they are too large for a lightweight repo
 reefer_release.zip
